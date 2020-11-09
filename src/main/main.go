@@ -2,9 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/tatsushid/go-fastping"
-	"net"
 	"os"
+	"runtime"
 	"time"
 )
 
@@ -13,34 +12,25 @@ func showHelp() {
 		"    IP      IP Address\n")
 }
 
-func PingOneTime(ipAddr string) bool {
-	p := fastping.NewPinger()
-	ra, err := net.ResolveIPAddr("ip4:icmp", ipAddr)
-	if err != nil {
-		return false
-	}
-	passed := false
-	p.AddIPAddr(ra)
-	p.OnRecv = func(addr *net.IPAddr, rtt time.Duration) {
-		passed = true
-	}
-	p.OnIdle = func() {
-	}
-	_ = p.Run()
-	return passed
-}
-
 func WaitUpByPing(ipAddr string) {
 	fmt.Printf("Wait up [%s] ", ipAddr)
+
+	pingFunc := PingWithICMP
+
+	if runtime.GOOS == "darwin" {
+		pingFunc = PingWithMacOSCommand
+	}
+
 	for true {
 		fmt.Print(".")
-		if PingOneTime(ipAddr) {
+		if pingFunc(ipAddr) {
 			break
 		} else {
+			time.Sleep(1 * time.Second)
 			continue
 		}
 	}
-	fmt.Printf(" connected")
+	fmt.Println(" connected")
 }
 
 func main() {
@@ -50,5 +40,4 @@ func main() {
 	}
 
 	WaitUpByPing(os.Args[1])
-
 }
